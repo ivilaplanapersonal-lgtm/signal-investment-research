@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(export PATH=\"/tmp/node-v22.14.0-darwin-arm64/bin:$PATH\")",
+      "Bash(npm install recharts)",
+      "Bash(/tmp/node-v22.14.0-darwin-arm64/bin/npm install)",
+      "Bash(PATH=/tmp/node-v22.14.0-darwin-arm64/bin:$PATH npm install)",
+      "Bash(NODE=/tmp/node-v22.14.0-darwin-arm64/bin/node)",
+      "Bash(NPM=/tmp/node-v22.14.0-darwin-arm64/bin/npm)",
+      "Bash(__NEW_LINE_a76215c6faac7f43__ cd /Users/ivanvilaplanamorote/Documents/Claude/Investments)",
+      "Bash($NODE $NPM install)",
+      "Bash(/tmp/node-v22.14.0-darwin-arm64/bin/node /tmp/node-v22.14.0-darwin-arm64/bin/npm install)",
+      "Bash(PATH=\"$HOME/bin:/tmp/node-v22.14.0-darwin-arm64/bin:$PATH\" /tmp/node-v22.14.0-darwin-arm64/bin/node /tmp/node-v22.14.0-darwin-arm64/bin/npm install)",
+      "Bash(PATH=\"$HOME/bin:/tmp/node-v22.14.0-darwin-arm64/bin:$PATH\" /tmp/node-v22.14.0-darwin-arm64/bin/node /tmp/node-v22.14.0-darwin-arm64/bin/npm install recharts)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(/tmp/node-v22.14.0-darwin-arm64/bin/npx vercel --version)",
+      "Bash(gh --version)",
+      "Bash(git config --global user.name)",
+      "Bash(git config --global user.email)",
+      "Bash(git --version)",
+      "Bash(git init)",
+      "Bash(git config user.name \"ivilaplanapersonal-lgtm\")",
+      "Bash(git config user.email \"ivilaplanapersonal-lgtm@users.noreply.github.com\")",
+      "Bash(git add -A)"
+    ]
+  }
+}

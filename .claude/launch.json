@@ -1,0 +1,15 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "investment-research-agent",
+      "runtimeExecutable": "/tmp/node-v22.14.0-darwin-arm64/bin/node",
+      "runtimeArgs": ["/tmp/node-v22.14.0-darwin-arm64/bin/npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3456"],
+      "port": 3456,
+      "cwd": "/Users/ivanvilaplanamorote/Documents/Claude/Investments",
+      "env": {
+        "PATH": "/Users/ivanvilaplanamorote/bin:/tmp/node-v22.14.0-darwin-arm64/bin:/usr/bin:/bin"
+      }
+    }
+  ]
+}
