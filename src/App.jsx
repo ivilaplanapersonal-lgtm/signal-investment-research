@@ -736,6 +736,10 @@ function robustParseJSON(text) {
 // Locally → call Anthropic directly with the key stored in localStorage
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
+// Session password — persists across refreshes but cleared when browser closes
+const getSitePassword = () => sessionStorage.getItem('signal-pw') || '';
+const setSitePassword = pw => sessionStorage.setItem('signal-pw', pw);
+
 async function callClaude(system, user, maxTok=2000) {
   const body = JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTok,system,messages:[{role:"user",content:user}]});
   let r;
@@ -746,15 +750,17 @@ async function callClaude(system, user, maxTok=2000) {
       body,
     });
   } else {
-    // Production: key is stored in ANTHROPIC_API_KEY env var on Vercel, never sent to browser
     r = await fetch("/api/claude", {
       method:"POST",
-      headers:{"Content-Type":"application/json"},
+      headers:{"Content-Type":"application/json","x-site-password":getSitePassword()},
       body,
     });
   }
   const d = await r.json();
-  if (d.error) throw new Error(d.error.message);
+  if (d.error) {
+    if (d.error.message === 'WRONG_PASSWORD') throw new Error('WRONG_PASSWORD');
+    throw new Error(d.error.message);
+  }
   const text = d.content?.map(b=>b.type==="text"?b.text:"").filter(Boolean).join("\n");
   if (!text) throw new Error("No response text");
   return robustParseJSON(text);
@@ -2654,7 +2660,58 @@ function SourcesHub() {
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 
+function PasswordGate({ onUnlock }) {
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState(false);
+  const [checking, setChecking] = useState(false);
+
+  const attempt = async () => {
+    if (!pw.trim()) return;
+    setChecking(true); setErr(false);
+    try {
+      // Test the password by making a minimal Claude call
+      const r = await fetch('/api/claude', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-site-password': pw },
+        body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:10, system:'Reply OK', messages:[{role:'user',content:'ping'}] }),
+      });
+      const d = await r.json();
+      if (d.error?.message === 'WRONG_PASSWORD') { setErr(true); }
+      else { setSitePassword(pw); onUnlock(); }
+    } catch { setErr(true); }
+    setChecking(false);
+  };
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg)'}}>
+      <div style={{background:'var(--sur)',border:'1px solid var(--bdr)',borderRadius:16,padding:'40px 48px',width:360,textAlign:'center'}}>
+        <div style={{fontSize:28,marginBottom:8}}>📡</div>
+        <div style={{fontFamily:'var(--hd)',fontSize:22,fontWeight:800,letterSpacing:'.06em',marginBottom:4}}>SIGNAL</div>
+        <div style={{fontFamily:'var(--mo)',fontSize:10,color:'var(--mu)',marginBottom:32,letterSpacing:'.1em'}}>INVESTMENT RESEARCH AGENT</div>
+        <input
+          type="password"
+          placeholder="Enter access password"
+          value={pw}
+          onChange={e=>{setPw(e.target.value);setErr(false);}}
+          onKeyDown={e=>e.key==='Enter'&&attempt()}
+          style={{width:'100%',background:'var(--s2)',border:`1px solid ${err?'var(--R)':'var(--bdr)'}`,borderRadius:8,padding:'10px 14px',color:'var(--tx)',fontFamily:'var(--mo)',fontSize:12,marginBottom:12,boxSizing:'border-box',outline:'none'}}
+          autoFocus
+        />
+        {err && <div style={{fontFamily:'var(--mo)',fontSize:10,color:'var(--R)',marginBottom:10}}>Incorrect password</div>}
+        <button
+          onClick={attempt}
+          disabled={checking || !pw.trim()}
+          style={{width:'100%',background:'var(--B)',border:'none',borderRadius:8,padding:'10px',color:'#000',fontFamily:'var(--hd)',fontWeight:700,fontSize:12,letterSpacing:'.08em',cursor:'pointer',opacity:checking?0.6:1}}
+        >
+          {checking ? 'Checking...' : 'Access →'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
+  const [unlocked, setUnlocked] = useState(() => IS_LOCAL || !!getSitePassword());
   const [tab, setTab] = useState("research");
   const [mode, setMode] = useState("long");
   const [query, setQuery] = useState("");
@@ -2778,6 +2835,8 @@ export default function App() {
   });
 
   const phaseIdx = PHASE_ORDER.indexOf(phase);
+
+  if (!unlocked) return <PasswordGate onUnlock={()=>setUnlocked(true)} />;
 
   return (
     <div className="app">
