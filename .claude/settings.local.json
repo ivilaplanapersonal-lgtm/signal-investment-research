@@ -21,7 +21,16 @@
       "Bash(git init)",
       "Bash(git config user.name \"ivilaplanapersonal-lgtm\")",
       "Bash(git config user.email \"ivilaplanapersonal-lgtm@users.noreply.github.com\")",
-      "Bash(git add -A)"
+      "Bash(git add -A)",
+      "Bash(git commit:*)",
+      "Bash(git remote add origin https://github.com/ivilaplanapersonal-lgtm/Investment_analyst.git)",
+      "Bash(git push -u origin main)",
+      "Bash(ssh-keygen -t ed25519 -C \"ivilaplanapersonal-lgtm@users.noreply.github.com\" -f ~/.ssh/github_signal -N \"\")",
+      "Bash(~/.ssh/config:*)",
+      "Bash(ssh -T git@github.com)",
+      "Bash(git remote set-url origin git@github.com:ivilaplanapersonal-lgtm/Investment_analyst.git)",
+      "Bash(/tmp/node-v22.14.0-darwin-arm64/bin/npm install -g vercel)",
+      "Bash(PATH=\"/tmp/node-v22.14.0-darwin-arm64/bin:$PATH\" npm install -g vercel)"
     ]
   }
 }

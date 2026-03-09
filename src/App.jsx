@@ -732,12 +732,27 @@ function robustParseJSON(text) {
   throw new Error("Could not parse JSON response");
 }
 
+// On Vercel (production) → proxy through /api/claude (key lives server-side, never exposed)
+// Locally → call Anthropic directly with the key stored in localStorage
+const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 async function callClaude(system, user, maxTok=2000) {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST",
-    headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":getApiKey()},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTok,system,messages:[{role:"user",content:user}]}),
-  });
+  const body = JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTok,system,messages:[{role:"user",content:user}]});
+  let r;
+  if (IS_LOCAL) {
+    r = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":getApiKey()},
+      body,
+    });
+  } else {
+    // Production: key is stored in ANTHROPIC_API_KEY env var on Vercel, never sent to browser
+    r = await fetch("/api/claude", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body,
+    });
+  }
   const d = await r.json();
   if (d.error) throw new Error(d.error.message);
   const text = d.content?.map(b=>b.type==="text"?b.text:"").filter(Boolean).join("\n");
@@ -2787,15 +2802,17 @@ export default function App() {
         </div>
       </div>
 
-      {/* API key banner */}
-      <div className="api-banner">
-        <span className="api-banner-msg">
-          {apiKeySet ? "✓ Anthropic API key configured" : "⚠ No API key set — all AI features are disabled"}
-        </span>
-        <button className={`api-key-btn ${apiKeySet?"set":""}`} onClick={()=>setShowApiModal(true)}>
-          {apiKeySet ? "Change Key" : "Set API Key"}
-        </button>
-      </div>
+      {/* API key banner — only shown locally, Vercel uses server-side env var */}
+      {IS_LOCAL && (
+        <div className="api-banner">
+          <span className="api-banner-msg">
+            {apiKeySet ? "✓ Anthropic API key configured" : "⚠ No API key set — all AI features are disabled"}
+          </span>
+          <button className={`api-key-btn ${apiKeySet?"set":""}`} onClick={()=>setShowApiModal(true)}>
+            {apiKeySet ? "Change Key" : "Set API Key"}
+          </button>
+        </div>
+      )}
 
       {/* API key modal */}
       {showApiModal && (
