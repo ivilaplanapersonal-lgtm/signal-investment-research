@@ -2099,14 +2099,18 @@ function parseRSSItems(text, label, maxItems = 4) {
 async function fetchSingleFeed(feedKey, maxItems = 4) {
   const feed = NEWSLETTER_FEEDS[feedKey];
   if (!feed) return [];
-  const bust = Math.floor(Date.now() / (10 * 60 * 1000)); // bust every 10 min
-  const proxies = [
+  const bust = Math.floor(Date.now() / (10 * 60 * 1000));
+  // In production use our own server-side proxy (no CORS issues, always reliable).
+  // Locally fall back to public CORS proxies.
+  const proxies = IS_LOCAL ? [
     `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}&_=${bust}`,
     `https://corsproxy.io/?url=${encodeURIComponent(feed.url)}`,
+  ] : [
+    `/api/rss?url=${encodeURIComponent(feed.url)}&_=${bust}`,
   ];
   for (const proxy of proxies) {
     try {
-      const res = await fetch(proxy, { signal: AbortSignal.timeout(7000) });
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
       const items = parseRSSItems(await res.text(), feed.label, maxItems);
       if (items.length) return items;
@@ -2117,29 +2121,30 @@ async function fetchSingleFeed(feedKey, maxItems = 4) {
 
 // Fetch Google News RSS restricted to last 7 days → [{title,url,dateTs,date,label}]
 async function fetchGoogleNewsItems(query, maxItems = 10) {
-  // 'when:7d' tells Google News to only return results from the past 7 days
-  const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' when:7d')}&hl=en-US&gl=US&ceid=US:en`;
   const bust = Math.floor(Date.now() / (10 * 60 * 1000));
-  const proxies = [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}&_=${bust}`,
-    `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  const gnUrl7d = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' when:7d')}&hl=en-US&gl=US&ceid=US:en`;
+  const gnUrl30d = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' when:30d')}&hl=en-US&gl=US&ceid=US:en`;
+
+  // In production use our own server-side proxy; locally use public CORS proxies.
+  const makeProxies = (targetUrl) => IS_LOCAL ? [
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}&_=${bust}`,
+    `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+  ] : [
+    `/api/rss?url=${encodeURIComponent(targetUrl)}&_=${bust}`,
   ];
-  for (const proxy of proxies) {
+
+  for (const proxy of makeProxies(gnUrl7d)) {
     try {
-      const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
       const items = parseRSSItems(await res.text(), 'Press', maxItems);
       if (items.length) return items;
     } catch { continue; }
   }
-  // Fallback: try without the date filter if nothing found in past 7 days
-  const urlFallback = `https://news.google.com/rss/search?q=${encodeURIComponent(query + ' when:30d')}&hl=en-US&gl=US&ceid=US:en`;
-  for (const proxy of [
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(urlFallback)}`,
-    `https://corsproxy.io/?url=${encodeURIComponent(urlFallback)}`,
-  ]) {
+  // Fallback: broaden to 30 days if nothing in past 7
+  for (const proxy of makeProxies(gnUrl30d)) {
     try {
-      const res = await fetch(proxy, { signal: AbortSignal.timeout(8000) });
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
       const items = parseRSSItems(await res.text(), 'Press', maxItems);
       if (items.length) return items;
@@ -2811,8 +2816,10 @@ export default function App() {
     localStorage.removeItem('daily-trend-v2');
   };
 
-  // Load daily trend on mount — cache result in sessionStorage to avoid re-fetching on HMR reloads
+  // Load daily trend once authenticated — dependency on `unlocked` ensures this
+  // fires after the password gate is passed, not before (which would fail auth).
   useEffect(() => {
+    if (!unlocked) return; // wait until authenticated
     try {
       const raw = localStorage.getItem('daily-trend-v2');
       if (raw) {
@@ -2823,7 +2830,7 @@ export default function App() {
       }
     } catch {}
     loadDailyTrend(false);
-  }, []);
+  }, [unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDailyTrend = async (isRefresh=false) => {
     if (isRefresh) setDailyRefreshing(true);
