@@ -754,6 +754,20 @@ function robustParseJSON(text) {
 // Locally → call Anthropic directly with the key stored in localStorage
 const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
+// ─── CACHE VERSION ────────────────────────────────────────────────────────────
+// Bump this ONE constant to instantly invalidate ALL localStorage caches.
+// Do this whenever: (a) a cached data schema changes, (b) a proxy bug is fixed,
+// or (c) users report stale/broken data. Format: 'v4', 'v5', etc.
+const CACHE_VERSION = 'v3';
+
+// ─── ADDING NEW EXTERNAL FETCHES — RULES ─────────────────────────────────────
+// NEVER call external URLs (Yahoo, Google News, RSS feeds, etc.) directly from
+// the browser in production — CORS will block it or the proxy will rate-limit.
+// Always follow the IS_LOCAL pattern:
+//   IS_LOCAL  → fetch directly (dev convenience, needs local API key)
+//   !IS_LOCAL → route through /api/rss?url=... or /api/claude
+// If you forget this, things will silently work locally but break on Vercel.
+
 // Session password — persists across refreshes but cleared when browser closes
 const getSitePassword = () => sessionStorage.getItem('signal-pw') || '';
 const setSitePassword = pw => sessionStorage.setItem('signal-pw', pw);
@@ -1467,7 +1481,7 @@ const INITIAL_POSITIONS = [
 
 async function fetchStockIntelligence(ticker, name) {
   try {
-    const raw = localStorage.getItem(`intel-v3-${ticker}`);
+    const raw = localStorage.getItem(`intel-${CACHE_VERSION}-${ticker}`);
     if (raw) {
       const { ts, data } = JSON.parse(raw);
       if (Date.now() - ts < 60 * 60 * 1000) return data;
@@ -1509,7 +1523,7 @@ Provide 5-6 news items mixing direct company news and indirect macro/sector fact
   const result = await callClaude(sys,
     `Provide investment intelligence for ${name} (${ticker}). Mix direct company news with indirect sector/macro factors that could affect this stock in the coming weeks.${headlinesBlock}`,
     1600);
-  try { localStorage.setItem(`intel-v3-${ticker}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
+  try { localStorage.setItem(`intel-${CACHE_VERSION}-${ticker}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
   return result;
 }
 
@@ -2159,7 +2173,7 @@ async function fetchGoogleNewsItems(query, maxItems = 10) {
 
 async function fetchInterestNews(interest) {
   try {
-    const raw = localStorage.getItem(`interest-v3-${interest.id}`);
+    const raw = localStorage.getItem(`interest-${CACHE_VERSION}-${interest.id}`);
     if (raw) {
       const { ts, data } = JSON.parse(raw);
       if (Date.now() - ts < 60 * 60 * 1000) return { ...data, _cached: ts }; // 1h cache
@@ -2211,7 +2225,7 @@ Provide exactly 4 items.`;
 
   const userMsg = `4 most investment-relevant developments in: ${interest.prompt}${headlinesBlock}`;
   const result = await callClaude(sys, userMsg, 2000);
-  try { localStorage.setItem(`interest-v3-${interest.id}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
+  try { localStorage.setItem(`interest-${CACHE_VERSION}-${interest.id}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
   return result;
 }
 
@@ -2222,7 +2236,7 @@ function InterestStrip({ interest }) {
   const [spinning, setSpinning] = useState(false);
 
   const load = async (force=false) => {
-    if (force) { localStorage.removeItem(`interest-v3-${interest.id}`); setSpinning(true); }
+    if (force) { localStorage.removeItem(`interest-${CACHE_VERSION}-${interest.id}`); setSpinning(true); }
     setLoading(true); setError(null);
     try { setData(await fetchInterestNews(interest)); }
     catch(e) { setError(e.message); }
@@ -2816,7 +2830,7 @@ export default function App() {
     setShowApiModal(false);
     setApiKeyInput('');
     // Clear cache so next mount fetches fresh with new key
-    localStorage.removeItem('daily-trend-v3');
+    localStorage.removeItem(`daily-trend-${CACHE_VERSION}`);
   };
 
   // Load daily trend once authenticated — dependency on `unlocked` ensures this
@@ -2824,7 +2838,7 @@ export default function App() {
   useEffect(() => {
     if (!unlocked) return; // wait until authenticated
     try {
-      const raw = localStorage.getItem('daily-trend-v3');
+      const raw = localStorage.getItem(`daily-trend-${CACHE_VERSION}`);
       if (raw) {
         const { ts, data } = JSON.parse(raw);
         if (Date.now() - ts < 24 * 60 * 60 * 1000) {
@@ -2842,7 +2856,7 @@ export default function App() {
     try {
       const t = await fetchDailyTrend();
       setDailyTrend(t);
-      try { localStorage.setItem('daily-trend-v3', JSON.stringify({ ts: Date.now(), data: t })); } catch {}
+      try { localStorage.setItem(`daily-trend-${CACHE_VERSION}`, JSON.stringify({ ts: Date.now(), data: t })); } catch {}
     } catch(e) {
       console.error("Daily trend failed:", e);
       setDailyError(true);
@@ -3218,7 +3232,7 @@ export default function App() {
             <ContrarianSection contrarian={contrarian} stocks={stocks}/>
 
             <div className="disc">
-              ⚠ AI-generated research for informational purposes only. Not financial advice. Always do your own due diligence. Price data from Yahoo Finance via corsproxy.io and may be delayed. Contrarian views are speculative analysis only. Past performance is not indicative of future results.
+              ⚠ AI-generated research for informational purposes only. Not financial advice. Always do your own due diligence. Price data from Yahoo Finance and may be delayed. Contrarian views are speculative analysis only. Past performance is not indicative of future results.
             </div>
           </div>
         )}
