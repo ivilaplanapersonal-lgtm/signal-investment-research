@@ -8,8 +8,10 @@ export default async function handler(req, res) {
   const { url } = req.query;
   if (!url) return res.status(400).json({ error: 'Missing url parameter' });
 
-  const decodedUrl = decodeURIComponent(url);
-  if (!decodedUrl.startsWith('http://') && !decodedUrl.startsWith('https://')) {
+  // req.query.url is already decoded once by Node/Vercel's query parser.
+  // Do NOT call decodeURIComponent again — Google News URLs contain
+  // encoded spaces (%20) that would become literal spaces (invalid HTTP).
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
     return res.status(400).json({ error: 'Invalid URL' });
   }
 
@@ -17,7 +19,7 @@ export default async function handler(req, res) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 9000);
 
-    const response = await fetch(decodedUrl, {
+    const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; SignalBot/1.0)',
         'Accept': 'application/rss+xml, application/xml, text/xml, */*',
