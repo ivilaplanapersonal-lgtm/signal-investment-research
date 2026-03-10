@@ -55,8 +55,10 @@ body{background:var(--bg);}
 
 /* ── PORTFOLIO ── */
 .port-wrap{display:flex;height:calc(100vh - 54px);overflow:hidden;}
-.port-left{flex:1;min-width:0;overflow-y:auto;padding:24px;border-right:1px solid var(--bdr);display:flex;flex-direction:column;gap:18px;}
-.port-right{width:360px;flex-shrink:0;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;}
+.port-left{flex:1;min-width:0;min-height:0;overflow-y:auto;padding:24px;border-right:1px solid var(--bdr);display:flex;flex-direction:column;gap:18px;}
+.port-left>*{flex-shrink:0;}
+.port-right{width:360px;flex-shrink:0;min-height:0;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;}
+.port-right>*{flex-shrink:0;}
 
 /* Summary bar */
 .port-summary{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;padding:16px 18px;}
@@ -1051,7 +1053,7 @@ function SourceRefPills({refs, label="Sources"}) {
 
 // ─── DAILY TREND CARD ─────────────────────────────────────────────────────────
 
-function DailyTrendCard({trend, loading, onRefresh, refreshing}) {
+function DailyTrendCard({trend, loading, onRefresh, refreshing, error}) {
   if (loading) return (
     <div className="dt-wrap">
       <div className="slbl">// Today's Niche Trend Pick</div>
@@ -1059,6 +1061,19 @@ function DailyTrendCard({trend, loading, onRefresh, refreshing}) {
         <div className="dt-loading">
           <div style={{fontFamily:"var(--mo)",fontSize:11,color:"var(--mu)"}}>Scanning niche data sources...</div>
           <div className="dt-loading-bar"><div className="dt-loading-fill"/></div>
+        </div>
+      </div>
+    </div>
+  );
+  if (error) return (
+    <div className="dt-wrap">
+      <div className="slbl">// Today's Niche Trend Pick</div>
+      <div className="cc">
+        <div style={{textAlign:"center",padding:"24px 20px",display:"flex",flexDirection:"column",alignItems:"center",gap:12}}>
+          <div style={{fontFamily:"var(--mo)",fontSize:11,color:"var(--mu)"}}>⚠ Could not load today's pick — tap to retry</div>
+          <button className="refresh-btn" onClick={onRefresh} disabled={refreshing} style={{margin:0}}>
+            {refreshing ? "···" : "↻ Retry"}
+          </button>
         </div>
       </div>
     </div>
@@ -1298,11 +1313,8 @@ function AskRoy({ positions, priceMap, gbpusd }) {
     setLoading(true);
     setResponse(null);
     try {
-      // Roy returns plain text not JSON — use direct fetch
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":getApiKey()},
-        body:JSON.stringify({
+      // Roy returns plain text — use proxy in production, direct API locally
+      const royReqBody = {
           model:"claude-sonnet-4-20250514",
           max_tokens:1500,
           system:`You are Roy — a seasoned investment analyst with 20 years at Bridgewater Associates. You are known for radical transparency, intellectual rigour, and a disciplined process of self-challenging before reaching any conclusion.
@@ -1327,8 +1339,21 @@ RESPONSE FORMAT — plain text only, no markdown, no bullet points, no headers:
 - Cover the key risk that could make you wrong
 - End with: "Conviction: X/100 — [one sentence on what drives that score]"`,
           messages:[{role:"user",content:q}]
-        })
-      });
+      };
+      let r;
+      if (IS_LOCAL) {
+        r = await fetch("https://api.anthropic.com/v1/messages", {
+          method:"POST",
+          headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":getApiKey()},
+          body:JSON.stringify(royReqBody),
+        });
+      } else {
+        r = await fetch("/api/claude", {
+          method:"POST",
+          headers:{"Content-Type":"application/json","x-site-password":getSitePassword()},
+          body:JSON.stringify(royReqBody),
+        });
+      }
       const d = await r.json();
       if (d.error) throw new Error(d.error.message);
       setResponse(d.content?.map(b=>b.type==="text"?b.text:"").join("").trim());
@@ -2730,6 +2755,7 @@ export default function App() {
   const [dailyTrend, setDailyTrend] = useState(null);
   const [dailyLoading, setDailyLoading] = useState(true);
   const [dailyRefreshing, setDailyRefreshing] = useState(false);
+  const [dailyError, setDailyError] = useState(false);
 
   const [showApiModal, setShowApiModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -2763,12 +2789,14 @@ export default function App() {
   const loadDailyTrend = async (isRefresh=false) => {
     if (isRefresh) setDailyRefreshing(true);
     else setDailyLoading(true);
+    setDailyError(false);
     try {
       const t = await fetchDailyTrend();
       setDailyTrend(t);
       try { localStorage.setItem('daily-trend-cache', JSON.stringify({ ts: Date.now(), data: t })); } catch {}
     } catch(e) {
       console.error("Daily trend failed:", e);
+      setDailyError(true);
     } finally {
       setDailyLoading(false);
       setDailyRefreshing(false);
@@ -2919,6 +2947,7 @@ export default function App() {
           loading={dailyLoading}
           onRefresh={()=>loadDailyTrend(true)}
           refreshing={dailyRefreshing}
+          error={dailyError}
         />
 
         {/* SEARCH */}
