@@ -52,6 +52,19 @@ body{background:var(--bg);}
 .dt-src-refs{display:flex;flex-wrap:wrap;gap:5px;padding:10px 20px 14px;border-top:1px solid var(--bdr);}
 .dt-src-refs-lbl{font-family:var(--mo);font-size:8px;color:var(--mu);letter-spacing:.12em;
   text-transform:uppercase;width:100%;margin-bottom:4px;}
+.dt-key-headlines{padding:10px 20px 14px;border-top:1px solid var(--bdr);display:flex;flex-direction:column;gap:6px;}
+.dt-hl-item{display:flex;flex-direction:column;gap:2px;padding:7px 10px;background:var(--s2);border:1px solid var(--bdr);border-radius:6px;text-decoration:none;color:inherit;transition:border-color .15s;}
+.dt-hl-item:hover{border-color:var(--B);}
+.dt-hl-meta{font-family:var(--mo);font-size:8px;color:var(--mu);letter-spacing:.04em;display:flex;align-items:center;gap:6px;}
+.dt-hl-hint{color:var(--B);font-size:8px;margin-left:auto;}
+.dt-hl-title{font-size:11px;color:var(--tx);line-height:1.4;margin-top:1px;}
+.live-hl-section{margin-top:14px;}
+.live-hl-lbl{font-family:var(--mo);font-size:8px;color:var(--mu);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;}
+.live-hl-item{display:flex;flex-direction:column;gap:2px;padding:7px 10px;background:var(--s2);border:1px solid var(--bdr);border-radius:6px;margin-bottom:5px;text-decoration:none;color:inherit;transition:border-color .15s;}
+.live-hl-item:hover{border-color:var(--B);}
+.live-hl-meta{font-family:var(--mo);font-size:8px;color:var(--mu);display:flex;align-items:center;gap:6px;}
+.live-hl-hint{color:var(--B);font-size:8px;margin-left:auto;}
+.live-hl-title{font-size:11px;color:var(--tx);line-height:1.4;margin-top:1px;}
 
 /* ── PORTFOLIO ── */
 .port-wrap{display:flex;height:calc(100vh - 54px);overflow:hidden;}
@@ -829,13 +842,16 @@ Return ONLY valid JSON (no markdown, no backticks):
   ],
   "negativeImpact": [
     {"ticker":"REAL_TICKER","company":"name","sector":"sector","reason":"concrete reason they are hurt"}
+  ],
+  "keyHeadlines": [
+    {"title":"exact headline text from the live feed that most directly informed this pick","source":"source label e.g. Reuters","date":"08 Mar 2026 or null","url":"full URL or null"}
   ]
 }
-Include 3 positive and 3 negative stocks. Be genuinely creative. Use real tickers.`;
+Include 3 positive and 3 negative stocks. Include up to 3 keyHeadlines — the live feed headlines that most directly informed your pick. Copy the exact URL from the live feed. Be genuinely creative. Use real tickers.`;
 
   return callClaude(sys,
     `Today is ${new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}. Give me today's niche investment trend pick.${headlinesBlock}`,
-    1600);
+    1900);
 }
 
 async function phase1(query, mode) {
@@ -874,6 +890,9 @@ Return ONLY valid JSON:
   "themeSourceRefs": [
     {"source":"Source name from curated list","relevance":"1 sentence on why this source is relevant to this theme"}
   ],
+  "recentHeadlines": [
+    {"title":"exact headline text from the live feed","source":"source label e.g. Reuters","date":"08 Mar 2026 or null","url":"full URL or null"}
+  ],
   "stocks":[{
     "ticker":"EXACT ticker e.g. NVDA",
     "name":"company name",
@@ -892,9 +911,9 @@ Return ONLY valid JSON:
     ]
   }]
 }
-Include exactly 5 stocks. Use real currently-listed tickers only. Include 2-3 sourceRefs per stock and 2-4 themeSourceRefs.
+Include exactly 5 stocks. Use real currently-listed tickers only. Include 2-3 sourceRefs per stock, 2-4 themeSourceRefs, and up to 5 recentHeadlines — the most relevant live headlines from the feed that informed this analysis. Copy exact URLs from the live feed.
 ${mode==="short"?"Focus on near-term setups, momentum, event-driven plays.":"Focus on structural compounders with durable moats."}`;
-  return callClaude(sys, `Today is ${new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}. Analyze investment opportunities in: "${query}"${headlinesBlock}`, 2500);
+  return callClaude(sys, `Today is ${new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}. Analyze investment opportunities in: "${query}"${headlinesBlock}`, 2800);
 }
 
 async function phase2Tech(stocks, pMap, mode) {
@@ -1136,6 +1155,26 @@ function DailyTrendCard({trend, loading, onRefresh, refreshing, error}) {
             {trend.relevantSources.map((src,i)=>(
               <span key={i} className="src-ref-pill"><span className="src-ref-name">{src}</span></span>
             ))}
+          </div>
+        )}
+        {trend.keyHeadlines?.length>0&&(
+          <div className="dt-key-headlines">
+            <span className="dt-src-refs-lbl">📰 Live signals that informed this pick</span>
+            {trend.keyHeadlines.map((h,i)=>{
+              const inner = <>
+                <div className="dt-hl-meta">
+                  <span>{h.source}</span>
+                  {h.date&&<span>· {h.date}</span>}
+                  {h.url&&<span className="dt-hl-hint">↗ open source</span>}
+                </div>
+                <div className="dt-hl-title">{h.title}</div>
+              </>;
+              return h.url ? (
+                <a key={i} href={h.url} target="_blank" rel="noopener noreferrer" className="dt-hl-item">{inner}</a>
+              ) : (
+                <div key={i} className="dt-hl-item">{inner}</div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -3045,6 +3084,26 @@ export default function App() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+                {analysis.recentHeadlines?.length>0&&(
+                  <div className="live-hl-section">
+                    <div className="live-hl-lbl">📰 Live headlines used in this analysis</div>
+                    {analysis.recentHeadlines.map((h,i)=>{
+                      const inner = <>
+                        <div className="live-hl-meta">
+                          <span>{h.source}</span>
+                          {h.date&&<span>· {h.date}</span>}
+                          {h.url&&<span className="live-hl-hint">↗ open source</span>}
+                        </div>
+                        <div className="live-hl-title">{h.title}</div>
+                      </>;
+                      return h.url ? (
+                        <a key={i} href={h.url} target="_blank" rel="noopener noreferrer" className="live-hl-item">{inner}</a>
+                      ) : (
+                        <div key={i} className="live-hl-item">{inner}</div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
