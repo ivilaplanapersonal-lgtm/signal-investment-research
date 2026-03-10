@@ -70,7 +70,7 @@ body{background:var(--bg);}
 .port-wrap{display:flex;height:calc(100vh - 54px);overflow:hidden;}
 .port-left{flex:1;min-width:0;min-height:0;overflow-y:auto;padding:24px;border-right:1px solid var(--bdr);display:flex;flex-direction:column;gap:18px;}
 .port-left>*{flex-shrink:0;}
-.port-right{width:360px;flex-shrink:0;min-height:0;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;}
+.port-right{width:420px;flex-shrink:0;min-height:0;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:10px;}
 .port-right>*{flex-shrink:0;}
 
 /* Summary bar */
@@ -268,7 +268,7 @@ body{background:var(--bg);}
 .int-cached{font-family:var(--mo);font-size:8px;color:var(--dim);padding:8px 12px;border-top:1px solid var(--bdr);text-align:right;letter-spacing:.06em;}
 
 /* ── ASK ROY ── */
-.roy-wrap{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;margin-bottom:20px;overflow:hidden;}
+.roy-wrap{background:var(--sur);border:1px solid var(--bdr);border-radius:12px;}
 .roy-hdr{padding:12px 16px;border-bottom:1px solid var(--bdr);background:var(--s2);display:flex;align-items:center;gap:10px;}
 .roy-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#1a3a5c,#0d6e6e);border:1px solid var(--B);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
 .roy-name{font-size:12px;font-weight:800;color:var(--tx);letter-spacing:.06em;}
@@ -1464,7 +1464,7 @@ const INITIAL_POSITIONS = [
 
 async function fetchStockIntelligence(ticker, name) {
   try {
-    const raw = localStorage.getItem(`intel-${ticker}`);
+    const raw = localStorage.getItem(`intel-v2-${ticker}`);
     if (raw) {
       const { ts, data } = JSON.parse(raw);
       if (Date.now() - ts < 60 * 60 * 1000) return data;
@@ -1506,7 +1506,7 @@ Provide 5-6 news items mixing direct company news and indirect macro/sector fact
   const result = await callClaude(sys,
     `Provide investment intelligence for ${name} (${ticker}). Mix direct company news with indirect sector/macro factors that could affect this stock in the coming weeks.${headlinesBlock}`,
     1600);
-  try { localStorage.setItem(`intel-${ticker}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
+  try { localStorage.setItem(`intel-v2-${ticker}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
   return result;
 }
 
@@ -2151,7 +2151,7 @@ async function fetchGoogleNewsItems(query, maxItems = 10) {
 
 async function fetchInterestNews(interest) {
   try {
-    const raw = localStorage.getItem(`interest-${interest.id}`);
+    const raw = localStorage.getItem(`interest-v2-${interest.id}`);
     if (raw) {
       const { ts, data } = JSON.parse(raw);
       if (Date.now() - ts < 60 * 60 * 1000) return { ...data, _cached: ts }; // 1h cache
@@ -2203,7 +2203,7 @@ Provide exactly 4 items.`;
 
   const userMsg = `4 most investment-relevant developments in: ${interest.prompt}${headlinesBlock}`;
   const result = await callClaude(sys, userMsg, 2000);
-  try { localStorage.setItem(`interest-${interest.id}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
+  try { localStorage.setItem(`interest-v2-${interest.id}`, JSON.stringify({ ts: Date.now(), data: result })); } catch {}
   return result;
 }
 
@@ -2214,7 +2214,7 @@ function InterestStrip({ interest }) {
   const [spinning, setSpinning] = useState(false);
 
   const load = async (force=false) => {
-    if (force) { localStorage.removeItem(`interest-${interest.id}`); setSpinning(true); }
+    if (force) { localStorage.removeItem(`interest-v2-${interest.id}`); setSpinning(true); }
     setLoading(true); setError(null);
     try { setData(await fetchInterestNews(interest)); }
     catch(e) { setError(e.message); }
@@ -2808,13 +2808,13 @@ export default function App() {
     setShowApiModal(false);
     setApiKeyInput('');
     // Clear cache so next mount fetches fresh with new key
-    localStorage.removeItem('daily-trend-cache');
+    localStorage.removeItem('daily-trend-v2');
   };
 
   // Load daily trend on mount — cache result in sessionStorage to avoid re-fetching on HMR reloads
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('daily-trend-cache');
+      const raw = localStorage.getItem('daily-trend-v2');
       if (raw) {
         const { ts, data } = JSON.parse(raw);
         if (Date.now() - ts < 24 * 60 * 60 * 1000) {
@@ -2832,7 +2832,7 @@ export default function App() {
     try {
       const t = await fetchDailyTrend();
       setDailyTrend(t);
-      try { localStorage.setItem('daily-trend-cache', JSON.stringify({ ts: Date.now(), data: t })); } catch {}
+      try { localStorage.setItem('daily-trend-v2', JSON.stringify({ ts: Date.now(), data: t })); } catch {}
     } catch(e) {
       console.error("Daily trend failed:", e);
       setDailyError(true);
