@@ -1369,11 +1369,20 @@ function AskRoy({ positions, priceMap, gbpusd }) {
     setLoading(true);
     setResponse(null);
     try {
+      // Fetch live news for Roy's context before calling Claude
+      const liveItems = await fetchGoogleNewsItems(q, 6);
+      const newsBlock = liveItems.length > 0
+        ? '\n\nLIVE NEWS CONTEXT — sorted newest first, use these to answer questions about current events:\n' +
+          liveItems.map((item, i) =>
+            `[${i+1}][${item.label}${item.date ? ' · ' + item.date : ''}] ${item.title}${item.url ? '\n    URL: ' + item.url : ''}`
+          ).join('\n')
+        : '';
+
       // Roy returns plain text — use proxy in production, direct API locally
       const royReqBody = {
           model:"claude-sonnet-4-20250514",
           max_tokens:1500,
-          system:`You are Roy — a seasoned investment analyst with 20 years at Bridgewater Associates. You are known for radical transparency, intellectual rigour, and a disciplined process of self-challenging before reaching any conclusion.
+          system:`You are Roy — a seasoned investment analyst with 20 years at Bridgewater Associates. You are known for radical transparency, intellectual rigour, and a disciplined process of self-challenging before reaching any conclusion.${liveItems.length ? ' You have been given live news headlines — use these as your PRIMARY source for current events, legislation, market moves, and recent developments. Prioritise them over your training data.' : ''}
 
 User's current portfolio:
 ${portfolioContext}
@@ -1394,7 +1403,7 @@ RESPONSE FORMAT — plain text only, no markdown, no bullet points, no headers:
 - Cover trend newness and how much is priced in
 - Cover the key risk that could make you wrong
 - End with: "Conviction: X/100 — [one sentence on what drives that score]"`,
-          messages:[{role:"user",content:q}]
+          messages:[{role:"user",content:q + newsBlock}]
       };
       let r;
       if (IS_LOCAL) {
