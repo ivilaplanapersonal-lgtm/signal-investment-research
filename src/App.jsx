@@ -930,7 +930,7 @@ Return ONLY valid JSON:
 }
 Include exactly 5 stocks. Use real currently-listed tickers only. Include 2-3 sourceRefs per stock, 2-4 themeSourceRefs, and up to 5 recentHeadlines — the most relevant live headlines from the feed that informed this analysis. Copy exact URLs from the live feed.
 ${mode==="short"?"Focus on near-term setups, momentum, event-driven plays.":"Focus on structural compounders with durable moats."}`;
-  return callClaude(sys, `Today is ${new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}. Analyze investment opportunities in: "${query}"${headlinesBlock}`, 2800);
+  return callClaude(sys, `Today is ${new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"long",year:"numeric"})}. Analyze investment opportunities in: "${query}"${headlinesBlock}`, 4500);
 }
 
 async function phase2Tech(stocks, pMap, mode) {
