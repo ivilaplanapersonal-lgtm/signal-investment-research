@@ -2,6 +2,8 @@
 
 A personal investment research dashboard powered by Claude and live RSS feeds. Built to surface non-consensus intelligence faster than a Bloomberg terminal.
 
+**Live demo:** [investment-analyst-steel.vercel.app](https://investment-analyst-steel.vercel.app)
+
 ![Stack](https://img.shields.io/badge/React-19-blue) ![Stack](https://img.shields.io/badge/Vite-7-purple) ![Stack](https://img.shields.io/badge/Claude-Sonnet_4-orange) ![Stack](https://img.shields.io/badge/Deployed-Vercel-black)
 
 ---
